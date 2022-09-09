@@ -1,0 +1,25 @@
+## using ARG-OAPs for ARG annotation from metagenomic reads
+	./argoap_pipeline_stageone_version2 -i ../metagenomic_data/fq -m ../metagenomic_data/fq/meta-data.txt -o ../metagenomic_data/fq/arg_stageone/ -n 20 -s
+	
+	./argoap_pipeline_stagetwo_version2 -i ../metagenomic_data/fq/arg_stageone/extracted.fa -m ../metagenomic_data/fq/arg_stageone/meta_data_online.txt -n 16 -l 45 -d 90 -o ../metagenomic_data/fq/arg_stagetwo/meta
+
+## using megahit to assemble metagenomic reads
+	for i in *_1.fa;do megahit -1 $i -2 ${i%_1.fa}_2.fa -o ./megahit_output/${i%_1.fa}_megahit_output -t 20;done
+
+##  ARG annotation in metagenomic contigs
+	for i in *.fa;do prodigal -i $i -a ${i%fa}faa -p meta -o ${i%fa}txt;done
+	for i in *.faa;do blastp -query $i -db ../database/ARGsdb/ARGsDB -outfmt 6 -evalue 1e-5 -num_threads 20 -out ${i%faa}ARGs_blasp_result_out;done
+
+## extract ARG-carrying contigs
+
+	for i in *_annotation.txt;do awk '{print $1}' $i > ./${i%_ARGs_annotation.txt}.txt;done 
+
+	for i in *.txt;do sort $i | uniq > ${i%.txt}_sort.txt;done 
+
+	for i in *.fa;do seqtk subseq $i ${i%.fa}_sort.txt > ${i%.fa}_extract.fasta;done
+
+## ARG sequence similarity analysis
+	
+	vsearch --cluster_fast ./ARGs_sequence.fa --id 1 --centroids ./ARGs_otu100.fa --relabel ARGs_OTU_
+
+	vsearch --usearch_global ./ARGs_sequence.fa --db ./ARGs_otu100.fa --id 1 --otutabout ./ARGs_otu100_tab.txt --blast6out ./ARGs_blast6out.txt
